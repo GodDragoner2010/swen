@@ -3,6 +3,7 @@ package at.technikum.mrp.http;
 import at.technikum.mrp.dto.ErrorResponse;
 import at.technikum.mrp.persistence.DataAccessException;
 import at.technikum.mrp.service.ConflictException;
+import at.technikum.mrp.service.UnauthorizedException;
 import at.technikum.mrp.service.ValidationException;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -45,6 +46,9 @@ public final class ApiServer {
             writeJson(exchange, 404, gson.toJson(new ErrorResponse("Route not found")));
         } catch (ValidationException e) {
             writeJson(exchange, 400, gson.toJson(new ErrorResponse(e.getMessage())));
+        } catch (UnauthorizedException e) {
+            exchange.getResponseHeaders().set("WWW-Authenticate", "Bearer");
+            writeJson(exchange, 401, gson.toJson(new ErrorResponse(e.getMessage())));
         } catch (ConflictException e) {
             writeJson(exchange, 409, gson.toJson(new ErrorResponse(e.getMessage())));
         } catch (HttpException e) {

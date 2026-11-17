@@ -7,6 +7,7 @@ import at.technikum.mrp.persistence.UserRepository;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.util.Optional;
 
 public final class JdbcUserRepository implements UserRepository {
     private final Database database;
@@ -33,6 +34,33 @@ public final class JdbcUserRepository implements UserRepository {
                 try (ResultSet result = statement.executeQuery()) {
                     result.next();
                     return user.withId(result.getLong("id"));
+                }
+            }
+        });
+    }
+
+    @Override
+    public Optional<User> findByUsername(String username) {
+        return database.read(connection -> {
+            String sql = """
+                    SELECT id, username, password_hash, password_salt, email, favorite_genre, created_at
+                    FROM users WHERE username = ?
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, username);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(new User(
+                            result.getLong("id"),
+                            result.getString("username"),
+                            result.getString("password_hash"),
+                            result.getString("password_salt"),
+                            result.getString("email"),
+                            result.getString("favorite_genre"),
+                            result.getTimestamp("created_at").toInstant()
+                    ));
                 }
             }
         });

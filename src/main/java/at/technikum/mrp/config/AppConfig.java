@@ -1,44 +1,41 @@
 package at.technikum.mrp.config;
 
-public final class AppConfig {
-    private final int port;
-    private final String dbUrl;
-    private final String dbUser;
-    private final String dbPassword;
+import java.time.Duration;
 
-    private AppConfig(int port, String dbUrl, String dbUser, String dbPassword) {
-        this.port = port;
-        this.dbUrl = dbUrl;
-        this.dbUser = dbUser;
-        this.dbPassword = dbPassword;
-    }
-
+public record AppConfig(
+        int port,
+        String dbUrl,
+        String dbUser,
+        String dbPassword,
+        Duration tokenTtl
+) {
     public static AppConfig fromEnvironment() {
-        int port = Integer.parseInt(env("MRP_PORT", "8080"));
+        int port = intEnv("MRP_PORT", 8080);
         String dbUrl = env("MRP_DB_URL", "jdbc:postgresql://localhost:5432/mrp");
         String dbUser = env("MRP_DB_USER", "mrp");
         String dbPassword = env("MRP_DB_PASSWORD", "mrp");
-        return new AppConfig(port, dbUrl, dbUser, dbPassword);
+        long ttlMinutes = longEnv("MRP_TOKEN_TTL_MINUTES", 1440);
+        if (port < 0 || port > 65535) {
+            throw new IllegalArgumentException("MRP_PORT must be between 0 and 65535");
+        }
+        if (ttlMinutes < 1) {
+            throw new IllegalArgumentException("MRP_TOKEN_TTL_MINUTES must be positive");
+        }
+        return new AppConfig(port, dbUrl, dbUser, dbPassword, Duration.ofMinutes(ttlMinutes));
     }
 
-    private static String env(String name, String def) {
+    private static String env(String name, String fallback) {
         String value = System.getenv(name);
-        return (value == null || value.isBlank()) ? def : value;
+        return value == null || value.isBlank() ? fallback : value;
     }
 
-    public int port() {
-        return port;
+    private static int intEnv(String name, int fallback) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? fallback : Integer.parseInt(value.trim());
     }
 
-    public String dbUrl() {
-        return dbUrl;
-    }
-
-    public String dbUser() {
-        return dbUser;
-    }
-
-    public String dbPassword() {
-        return dbPassword;
+    private static long longEnv(String name, long fallback) {
+        String value = System.getenv(name);
+        return value == null || value.isBlank() ? fallback : Long.parseLong(value.trim());
     }
 }

@@ -5,6 +5,7 @@ import at.technikum.mrp.persistence.UserRepository;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public final class InMemoryUserRepository implements UserRepository {
     private final Map<Long, User> byId = new LinkedHashMap<>();
@@ -18,7 +19,14 @@ public final class InMemoryUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findByUsername(String username) {
+        return byId.values().stream()
+                .filter(user -> user.username().equals(username))
+                .findFirst();
+    }
+
+    @Override
     public boolean existsByUsername(String username) {
-        return byId.values().stream().anyMatch(user -> user.username().equals(username));
+        return findByUsername(username).isPresent();
     }
 }

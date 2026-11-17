@@ -4,6 +4,7 @@ import at.technikum.mrp.domain.User;
 import at.technikum.mrp.persistence.UserRepository;
 
 import java.time.Clock;
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 public final class AuthService {
@@ -13,15 +14,17 @@ public final class AuthService {
 
     private final UserRepository users;
     private final PasswordHasher passwordHasher;
+    private final TokenService tokenService;
     private final Clock clock;
 
-    public AuthService(UserRepository users, PasswordHasher passwordHasher) {
-        this(users, passwordHasher, Clock.systemUTC());
+    public AuthService(UserRepository users, PasswordHasher passwordHasher, TokenService tokenService) {
+        this(users, passwordHasher, tokenService, Clock.systemUTC());
     }
 
-    public AuthService(UserRepository users, PasswordHasher passwordHasher, Clock clock) {
+    public AuthService(UserRepository users, PasswordHasher passwordHasher, TokenService tokenService, Clock clock) {
         this.users = users;
         this.passwordHasher = passwordHasher;
+        this.tokenService = tokenService;
         this.clock = clock;
     }
 
@@ -42,6 +45,20 @@ public final class AuthService {
                 clock.instant()
         );
         return users.create(user);
+    }
+
+    public LoginResult login(String rawUsername, String password) {
+        String username = rawUsername == null ? "" : rawUsername.trim();
+        if (username.isEmpty() || password == null || password.isEmpty()) {
+            throw new UnauthorizedException("Invalid username or password");
+        }
+        Optional<User> candidate = users.findByUsername(username);
+        if (candidate.isEmpty()
+                || !passwordHasher.matches(password, candidate.get().passwordSalt(), candidate.get().passwordHash())) {
+            throw new UnauthorizedException("Invalid username or password");
+        }
+        User user = candidate.get();
+        return new LoginResult(user, tokenService.issue(user.id()));
     }
 
     private String normalizeUsername(String rawUsername) {
