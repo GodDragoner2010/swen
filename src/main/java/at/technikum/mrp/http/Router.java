@@ -1,26 +1,28 @@
 package at.technikum.mrp.http;
 
-import com.sun.net.httpserver.HttpExchange;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
 
 public final class Router {
     public enum Access { PUBLIC, PROTECTED, OPTIONAL_AUTH }
 
-    private final Map<String, Function<HttpExchange, Object>> routes = new ConcurrentHashMap<>();
+    @FunctionalInterface
+    public interface Handler {
+        Object handle(RequestContext context) throws Exception;
+    }
 
-    public void add(String method, String path, Access access, Function<HttpExchange, Object> handler) {
+    private final Map<String, Handler> routes = new ConcurrentHashMap<>();
+
+    public void add(String method, String path, Access access, Handler handler) {
         routes.put(method + " " + path, handler);
     }
 
-    public Object dispatch(String method, String path, HttpExchange exchange) {
-        Function<HttpExchange, Object> handler = routes.get(method + " " + path);
+    public Object dispatch(String method, String path, RequestContext context) throws Exception {
+        Handler handler = routes.get(method + " " + path);
         if (handler == null) {
             throw new RouteNotFoundException(method + " " + path);
         }
-        return handler.apply(exchange);
+        return handler.handle(context);
     }
 
     public static final class RouteNotFoundException extends RuntimeException {

@@ -1,6 +1,11 @@
 package at.technikum.mrp.http;
 
+import at.technikum.mrp.dto.ErrorResponse;
+import at.technikum.mrp.persistence.DataAccessException;
+import at.technikum.mrp.service.ConflictException;
+import at.technikum.mrp.service.ValidationException;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 
@@ -11,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 public final class ApiServer {
     private final int port;
     private final Router router;
+    private final Gson gson = new GsonBuilder().serializeNulls().disableHtmlEscaping().create();
     private HttpServer server;
 
     public ApiServer(int port, Router router) {
@@ -28,12 +34,27 @@ public final class ApiServer {
         try {
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
-            Object result = router.dispatch(method, path, exchange);
-            writeJson(exchange, 200, new Gson().toJson(result));
+            RequestContext context = new RequestContext(exchange, gson);
+            Object result = router.dispatch(method, path, context);
+            if (result instanceof HttpResponse response) {
+                writeJson(exchange, response.status(), gson.toJson(response.body()));
+            } else {
+                writeJson(exchange, 200, gson.toJson(result));
+            }
         } catch (Router.RouteNotFoundException e) {
-            writeJson(exchange, 404, "{\"error\":\"route not found\"}");
+            writeJson(exchange, 404, gson.toJson(new ErrorResponse("Route not found")));
+        } catch (ValidationException e) {
+            writeJson(exchange, 400, gson.toJson(new ErrorResponse(e.getMessage())));
+        } catch (ConflictException e) {
+            writeJson(exchange, 409, gson.toJson(new ErrorResponse(e.getMessage())));
+        } catch (HttpException e) {
+            writeJson(exchange, e.status(), gson.toJson(new ErrorResponse(e.getMessage())));
+        } catch (DataAccessException e) {
+            e.printStackTrace(System.err);
+            writeJson(exchange, 500, gson.toJson(new ErrorResponse("Internal server error")));
         } catch (Exception e) {
-            writeJson(exchange, 500, "{\"error\":\"internal error\"}");
+            e.printStackTrace(System.err);
+            writeJson(exchange, 500, gson.toJson(new ErrorResponse("Internal server error")));
         } finally {
             exchange.close();
         }

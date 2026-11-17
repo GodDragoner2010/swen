@@ -1,11 +1,11 @@
 package at.technikum.mrp.http.controller;
 
-import com.sun.net.httpserver.HttpExchange;
+import at.technikum.mrp.http.RequestContext;
 
 import java.util.Map;
 
 public final class HealthController {
-    public Object health(HttpExchange exchange) {
+    public Object health(RequestContext context) {
         return Map.of("status", "ok");
     }
 }
