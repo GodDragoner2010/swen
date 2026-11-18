@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -150,5 +151,15 @@ class AuthServiceTest {
         service.register("alice", "secret123");
 
         assertThrows(UnauthorizedException.class, () -> service.login("bad user", "secret123"));
+    }
+
+    @Test
+    void authenticateResolvesUserIdOnlyForValidTokens() {
+        User registered = service.register("alice", "secret123");
+        String issued = service.login("alice", "secret123").token().token();
+
+        assertEquals(Optional.of(registered.id()), service.authenticate(issued));
+        assertEquals(Optional.empty(), service.authenticate("unknown"));
+        assertEquals(Optional.empty(), service.authenticate(null));
     }
 }

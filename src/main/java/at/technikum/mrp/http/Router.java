@@ -11,18 +11,25 @@ public final class Router {
         Object handle(RequestContext context) throws Exception;
     }
 
-    private final Map<String, Handler> routes = new ConcurrentHashMap<>();
+    public record Route(String method, String path, Access access, Handler handler) {
+    }
+
+    private final Map<String, Route> routes = new ConcurrentHashMap<>();
 
     public void add(String method, String path, Access access, Handler handler) {
-        routes.put(method + " " + path, handler);
+        routes.put(method + " " + path, new Route(method, path, access, handler));
+    }
+
+    public Route route(String method, String path) {
+        return routes.get(method + " " + path);
     }
 
     public Object dispatch(String method, String path, RequestContext context) throws Exception {
-        Handler handler = routes.get(method + " " + path);
-        if (handler == null) {
+        Route route = route(method, path);
+        if (route == null) {
             throw new RouteNotFoundException(method + " " + path);
         }
-        return handler.handle(context);
+        return route.handler().handle(context);
     }
 
     public static final class RouteNotFoundException extends RuntimeException {

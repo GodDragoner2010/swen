@@ -1,5 +1,6 @@
 package at.technikum.mrp.http;
 
+import at.technikum.mrp.service.UnauthorizedException;
 import at.technikum.mrp.service.ValidationException;
 import com.google.gson.Gson;
 import com.google.gson.JsonParseException;
@@ -14,11 +15,28 @@ public final class RequestContext {
 
     private final HttpExchange exchange;
     private final Gson gson;
+    private final Long userId;
     private byte[] body;
 
     public RequestContext(HttpExchange exchange, Gson gson) {
+        this(exchange, gson, null);
+    }
+
+    public RequestContext(HttpExchange exchange, Gson gson, Long userId) {
         this.exchange = exchange;
         this.gson = gson;
+        this.userId = userId;
+    }
+
+    public Long userId() {
+        return userId;
+    }
+
+    public long requireUserId() {
+        if (userId == null) {
+            throw new UnauthorizedException("Authentication required");
+        }
+        return userId;
     }
 
     public <T> T body(Class<T> type) {

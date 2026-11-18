@@ -61,6 +61,10 @@ public final class AuthService {
         return new LoginResult(user, tokenService.issue(user.id()));
     }
 
+    public Optional<Long> authenticate(String token) {
+        return tokenService.validate(token);
+    }
+
     private String normalizeUsername(String rawUsername) {
         if (rawUsername == null) {
             throw new ValidationException("Username is required");

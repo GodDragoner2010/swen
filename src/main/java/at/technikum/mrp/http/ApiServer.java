@@ -2,6 +2,7 @@ package at.technikum.mrp.http;
 
 import at.technikum.mrp.dto.ErrorResponse;
 import at.technikum.mrp.persistence.DataAccessException;
+import at.technikum.mrp.service.AuthService;
 import at.technikum.mrp.service.ConflictException;
 import at.technikum.mrp.service.UnauthorizedException;
 import at.technikum.mrp.service.ValidationException;
@@ -17,12 +18,14 @@ import java.nio.charset.StandardCharsets;
 public final class ApiServer {
     private final int port;
     private final Router router;
+    private final AuthFilter authFilter;
     private final Gson gson = new GsonBuilder().serializeNulls().disableHtmlEscaping().create();
     private HttpServer server;
 
-    public ApiServer(int port, Router router) {
+    public ApiServer(int port, Router router, AuthService authService) {
         this.port = port;
         this.router = router;
+        this.authFilter = new AuthFilter(authService);
     }
 
     public void start() throws Exception {
@@ -35,8 +38,14 @@ public final class ApiServer {
         try {
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
-            RequestContext context = new RequestContext(exchange, gson);
-            Object result = router.dispatch(method, path, context);
+            Router.Route route = router.route(method, path);
+            if (route == null) {
+                throw new Router.RouteNotFoundException(method + " " + path);
+            }
+            Long userId = authFilter.authenticate(
+                    exchange.getRequestHeaders().getFirst("Authorization"), route.access());
+            RequestContext context = new RequestContext(exchange, gson, userId);
+            Object result = route.handler().handle(context);
             if (result instanceof HttpResponse response) {
                 writeJson(exchange, response.status(), gson.toJson(response.body()));
             } else {
@@ -78,6 +87,6 @@ public final class ApiServer {
     }
 
     public int port() {
-        return port;
+        return server == null ? port : server.getAddress().getPort();
     }
 }

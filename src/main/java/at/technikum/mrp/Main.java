@@ -41,7 +41,7 @@ public final class Main {
         router.add("POST", "/api/users/register", Router.Access.PUBLIC, authController::register);
         router.add("POST", "/api/users/login", Router.Access.PUBLIC, authController::login);
 
-        ApiServer server = new ApiServer(config.port(), router);
+        ApiServer server = new ApiServer(config.port(), router, authService);
         Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
         server.start();
 
