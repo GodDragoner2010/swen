@@ -1,40 +1,80 @@
 package at.technikum.mrp.http;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class Router {
-    public enum Access { PUBLIC, PROTECTED, OPTIONAL_AUTH }
+    public enum Access {
+        PUBLIC,
+        OPTIONAL_AUTH,
+        PROTECTED
+    }
 
     @FunctionalInterface
     public interface Handler {
-        Object handle(RequestContext context) throws Exception;
+        HttpResponse handle(RequestContext context) throws Exception;
     }
 
-    public record Route(String method, String path, Access access, Handler handler) {
+    public record Route(String method, List<String> pattern, Access access, Handler handler) {
     }
 
-    private final Map<String, Route> routes = new ConcurrentHashMap<>();
-
-    public void add(String method, String path, Access access, Handler handler) {
-        routes.put(method + " " + path, new Route(method, path, access, handler));
+    public record Match(Route route, Map<String, String> pathParams, boolean pathMatched) {
     }
 
-    public Route route(String method, String path) {
-        return routes.get(method + " " + path);
+    private final List<Route> routes = new ArrayList<>();
+
+    public void add(String method, String pattern, Access access, Handler handler) {
+        routes.add(new Route(
+                method.toUpperCase(Locale.ROOT),
+                split(pattern),
+                access,
+                handler
+        ));
     }
 
-    public Object dispatch(String method, String path, RequestContext context) throws Exception {
-        Route route = route(method, path);
-        if (route == null) {
-            throw new RouteNotFoundException(method + " " + path);
+    public Match match(String method, String path) {
+        List<String> requested = split(path);
+        boolean pathMatched = false;
+        for (Route route : routes) {
+            Map<String, String> params = matchPath(route.pattern(), requested);
+            if (params == null) {
+                continue;
+            }
+            pathMatched = true;
+            if (route.method().equalsIgnoreCase(method)) {
+                return new Match(route, params, true);
+            }
         }
-        return route.handler().handle(context);
+        return new Match(null, Map.of(), pathMatched);
     }
 
-    public static final class RouteNotFoundException extends RuntimeException {
-        public RouteNotFoundException(String route) {
-            super("Route not found: " + route);
+    private Map<String, String> matchPath(List<String> pattern, List<String> requested) {
+        if (pattern.size() != requested.size()) {
+            return null;
         }
+        Map<String, String> params = new HashMap<>();
+        for (int i = 0; i < pattern.size(); i++) {
+            String expected = pattern.get(i);
+            String actual = requested.get(i);
+            if (expected.startsWith("{") && expected.endsWith("}")) {
+                params.put(expected.substring(1, expected.length() - 1), actual);
+            } else if (!expected.equals(actual)) {
+                return null;
+            }
+        }
+        return params;
+    }
+
+    private List<String> split(String path) {
+        List<String> parts = new ArrayList<>();
+        for (String part : path.split("/")) {
+            if (!part.isEmpty()) {
+                parts.add(part);
+            }
+        }
+        return parts;
     }
 }

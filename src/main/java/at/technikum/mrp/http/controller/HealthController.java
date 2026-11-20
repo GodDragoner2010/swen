@@ -1,11 +1,11 @@
 package at.technikum.mrp.http.controller;
 
+import at.technikum.mrp.dto.HealthResponse;
+import at.technikum.mrp.http.HttpResponse;
 import at.technikum.mrp.http.RequestContext;
 
-import java.util.Map;
-
 public final class HealthController {
-    public Object health(RequestContext context) {
-        return Map.of("status", "ok");
+    public HttpResponse health(RequestContext context) {
+        return HttpResponse.ok(new HealthResponse("ok"));
     }
 }

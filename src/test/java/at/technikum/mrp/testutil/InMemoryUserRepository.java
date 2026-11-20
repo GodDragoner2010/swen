@@ -19,6 +19,11 @@ public final class InMemoryUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findById(long id) {
+        return Optional.ofNullable(byId.get(id));
+    }
+
+    @Override
     public Optional<User> findByUsername(String username) {
         return byId.values().stream()
                 .filter(user -> user.username().equals(username))
@@ -28,5 +33,17 @@ public final class InMemoryUserRepository implements UserRepository {
     @Override
     public boolean existsByUsername(String username) {
         return findByUsername(username).isPresent();
+    }
+
+    public User seed(String username) {
+        return create(new User(
+                0,
+                username,
+                "hash",
+                "salt",
+                null,
+                null,
+                TestFixtures.NOW
+        ));
     }
 }

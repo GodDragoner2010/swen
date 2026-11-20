@@ -3,33 +3,49 @@ package at.technikum.mrp.http;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RouterTest {
     private final Router router = new Router();
 
     @Test
-    void storesAccessLevelPerRoute() {
-        router.add("GET", "/api/health", Router.Access.PUBLIC, context -> HttpResponse.ok("ok"));
-        router.add("POST", "/api/media", Router.Access.PROTECTED, context -> HttpResponse.ok("ok"));
+    void matchesPathParametersAndMethod() {
+        router.add("GET", "/api/media/{mediaId}", Router.Access.PUBLIC, context -> HttpResponse.ok("ok"));
 
-        assertEquals(Router.Access.PUBLIC, router.route("GET", "/api/health").access());
-        assertEquals(Router.Access.PROTECTED, router.route("POST", "/api/media").access());
-        assertNull(router.route("GET", "/api/media"));
+        Router.Match match = router.match("GET", "/api/media/17");
+
+        assertEquals("17", match.pathParams().get("mediaId"));
+        assertTrue(match.pathMatched());
+        assertTrue(match.route() != null);
     }
 
     @Test
-    void dispatchInvokesTheRegisteredHandler() throws Exception {
-        router.add("GET", "/api/health", Router.Access.PUBLIC,
-                context -> HttpResponse.ok("hello"));
+    void reportsPathMatchWhenMethodIsWrong() {
+        router.add("POST", "/api/ratings/{ratingId}/like", Router.Access.PROTECTED,
+                context -> HttpResponse.ok("ok"));
 
-        assertEquals(HttpResponse.ok("hello"), router.dispatch("GET", "/api/health", null));
+        Router.Match match = router.match("GET", "/api/ratings/3/like");
+
+        assertNull(match.route());
+        assertTrue(match.pathMatched());
     }
 
     @Test
-    void dispatchReportsUnknownRoute() {
-        assertThrows(Router.RouteNotFoundException.class,
-                () -> router.dispatch("GET", "/api/unknown", null));
+    void reportsNoMatchForUnknownPath() {
+        router.add("GET", "/api/leaderboard", Router.Access.PUBLIC, context -> HttpResponse.ok("ok"));
+
+        Router.Match match = router.match("GET", "/api/unknown");
+
+        assertNull(match.route());
+        assertFalse(match.pathMatched());
+    }
+
+    @Test
+    void ignoresTrailingSlashes() {
+        router.add("GET", "/api/media", Router.Access.PUBLIC, context -> HttpResponse.ok("ok"));
+
+        assertTrue(router.match("GET", "/api/media/").route() != null);
     }
 }

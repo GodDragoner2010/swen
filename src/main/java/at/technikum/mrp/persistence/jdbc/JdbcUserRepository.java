@@ -40,6 +40,33 @@ public final class JdbcUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findById(long id) {
+        return database.read(connection -> {
+            String sql = """
+                    SELECT id, username, password_hash, password_salt, email, favorite_genre, created_at
+                    FROM users WHERE id = ?
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, id);
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        return Optional.empty();
+                    }
+                    return Optional.of(new User(
+                            result.getLong("id"),
+                            result.getString("username"),
+                            result.getString("password_hash"),
+                            result.getString("password_salt"),
+                            result.getString("email"),
+                            result.getString("favorite_genre"),
+                            result.getTimestamp("created_at").toInstant()
+                    ));
+                }
+            }
+        });
+    }
+
+    @Override
     public Optional<User> findByUsername(String username) {
         return database.read(connection -> {
             String sql = """
