@@ -22,6 +22,7 @@ class MediaServiceTest {
     private InMemoryMediaRepository mediaRepository;
     private MediaService service;
     private User alice;
+    private User bob;
 
     @BeforeEach
     void setUp() {
@@ -29,6 +30,7 @@ class MediaServiceTest {
         mediaRepository = new InMemoryMediaRepository();
         service = new MediaService(mediaRepository, users, new MediaAssembler());
         alice = users.seed("alice");
+        bob = users.seed("bob");
     }
 
     @Test
@@ -111,6 +113,50 @@ class MediaServiceTest {
     @Test
     void getRejectsUnknownMediaId() {
         assertThrows(NotFoundException.class, () -> service.get(999));
+    }
+
+    @Test
+    void onlyTheCreatorMayUpdateMedia() {
+        MediaDetailResponse created = create("Inception", "movie", 2010, 12, List.of("sci-fi"));
+
+        assertThrows(ForbiddenException.class, () -> service.update(bob.id(), created.id(),
+                new MediaInput("Changed", "desc", "movie", 2010, List.of("sci-fi"), 12)));
+    }
+
+    @Test
+    void updatesMediaFieldsForTheCreator() {
+        MediaDetailResponse created = create("Inception", "movie", 2010, 12, List.of("sci-fi"));
+
+        MediaDetailResponse updated = service.update(alice.id(), created.id(),
+                new MediaInput("Inception Updated", "new", "movie", 2011, List.of("action"), 16));
+
+        assertEquals("Inception Updated", updated.title());
+        assertEquals("new", updated.description());
+        assertEquals(2011, updated.releaseYear());
+        assertEquals(List.of("action"), updated.genres());
+        assertEquals(alice.id(), updated.creatorId());
+        assertEquals("alice", updated.creatorUsername());
+    }
+
+    @Test
+    void updateRejectsUnknownMediaId() {
+        assertThrows(NotFoundException.class, () -> service.update(alice.id(), 999,
+                new MediaInput("Changed", "desc", "movie", 2010, List.of("sci-fi"), 12)));
+    }
+
+    @Test
+    void onlyTheCreatorMayDeleteMedia() {
+        MediaDetailResponse created = create("Inception", "movie", 2010, 12, List.of("sci-fi"));
+
+        assertThrows(ForbiddenException.class, () -> service.delete(bob.id(), created.id()));
+
+        service.delete(alice.id(), created.id());
+        assertTrue(mediaRepository.findAll().isEmpty());
+    }
+
+    @Test
+    void deleteRejectsUnknownMediaId() {
+        assertThrows(NotFoundException.class, () -> service.delete(alice.id(), 999));
     }
 
     @Test

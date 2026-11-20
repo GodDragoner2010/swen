@@ -77,6 +77,10 @@ public final class ApiServer {
     }
 
     private static void writeJson(HttpExchange exchange, int status, String json) throws IOException {
+        if (status == 204 || json == null) {
+            exchange.sendResponseHeaders(status, -1);
+            return;
+        }
         byte[] body = json.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.sendResponseHeaders(status, body.length);

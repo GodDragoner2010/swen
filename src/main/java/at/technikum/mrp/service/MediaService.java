@@ -55,6 +55,32 @@ public final class MediaService {
         return assembler.detail(requireMedia(mediaId));
     }
 
+    public MediaDetailResponse update(long requesterId, long mediaId, MediaInput input) {
+        MediaEntry existing = requireMedia(mediaId);
+        requireOwner(existing, requesterId, "You may only edit your own media entries");
+        ValidatedMedia validated = validate(input);
+        MediaEntry updated = new MediaEntry(
+                existing.id(),
+                validated.title(),
+                validated.description(),
+                validated.mediaType(),
+                validated.releaseYear(),
+                validated.genres(),
+                validated.ageRestriction(),
+                existing.creatorId(),
+                existing.creatorUsername(),
+                existing.createdAt()
+        );
+        media.update(updated);
+        return assembler.detail(requireMedia(mediaId));
+    }
+
+    public void delete(long requesterId, long mediaId) {
+        MediaEntry existing = requireMedia(mediaId);
+        requireOwner(existing, requesterId, "You may only delete your own media entries");
+        media.delete(mediaId);
+    }
+
     public List<MediaSummaryResponse> list() {
         return media.findAll().stream().map(assembler::summary).toList();
     }
@@ -62,6 +88,12 @@ public final class MediaService {
     private MediaEntry requireMedia(long mediaId) {
         return media.findById(mediaId)
                 .orElseThrow(() -> new NotFoundException("Media entry not found"));
+    }
+
+    private void requireOwner(MediaEntry entry, long requesterId, String message) {
+        if (entry.creatorId() != requesterId) {
+            throw new ForbiddenException(message);
+        }
     }
 
     private ValidatedMedia validate(MediaInput input) {

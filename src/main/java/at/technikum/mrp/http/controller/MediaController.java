@@ -24,4 +24,18 @@ public final class MediaController {
     public HttpResponse get(RequestContext context) {
         return HttpResponse.ok(mediaService.get(context.pathLong("mediaId")));
     }
+
+    public HttpResponse update(RequestContext context) {
+        MediaInput input = context.body(MediaInput.class);
+        return HttpResponse.ok(mediaService.update(
+                context.requireUserId(),
+                context.pathLong("mediaId"),
+                input
+        ));
+    }
+
+    public HttpResponse delete(RequestContext context) {
+        mediaService.delete(context.requireUserId(), context.pathLong("mediaId"));
+        return HttpResponse.noContent();
+    }
 }

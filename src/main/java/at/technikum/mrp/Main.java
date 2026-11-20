@@ -51,6 +51,8 @@ public final class Main {
         router.add("GET", "/api/media", Router.Access.OPTIONAL_AUTH, mediaController::list);
         router.add("POST", "/api/media", Router.Access.PROTECTED, mediaController::create);
         router.add("GET", "/api/media/{mediaId}", Router.Access.OPTIONAL_AUTH, mediaController::get);
+        router.add("PUT", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::update);
+        router.add("DELETE", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::delete);
 
         ApiServer server = new ApiServer(config.port(), router, authService);
         Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
