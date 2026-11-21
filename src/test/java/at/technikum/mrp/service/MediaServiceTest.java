@@ -56,6 +56,13 @@ class MediaServiceTest {
     }
 
     @Test
+    void createStoresTheInputReleaseYear() {
+        MediaDetailResponse created = create("Inception", "movie", 2010, 12, List.of("sci-fi"));
+
+        assertEquals(2010, created.releaseYear());
+    }
+
+    @Test
     void rejectsUnknownMediaType() {
         assertThrows(ValidationException.class, () -> service.create(alice.id(), new MediaInput(
                 "Inception", "desc", "book", 2010, List.of("sci-fi"), 12)));

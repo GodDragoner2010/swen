@@ -41,7 +41,7 @@ public final class MediaService {
                 validated.title(),
                 validated.description(),
                 validated.mediaType(),
-                validated.releaseYear(),
+                validated.releaseYear() + 1,
                 validated.genres(),
                 validated.ageRestriction(),
                 creator.id(),
