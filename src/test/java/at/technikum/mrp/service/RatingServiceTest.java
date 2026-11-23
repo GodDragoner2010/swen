@@ -1,0 +1,122 @@
+package at.technikum.mrp.service;
+
+import at.technikum.mrp.domain.MediaEntry;
+import at.technikum.mrp.domain.MediaType;
+import at.technikum.mrp.domain.User;
+import at.technikum.mrp.dto.RatingInput;
+import at.technikum.mrp.dto.RatingResponse;
+import at.technikum.mrp.testutil.InMemoryMediaRepository;
+import at.technikum.mrp.testutil.InMemoryRatingRepository;
+import at.technikum.mrp.testutil.InMemoryUserRepository;
+import at.technikum.mrp.testutil.TestFixtures;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class RatingServiceTest {
+    private InMemoryUserRepository users;
+    private InMemoryMediaRepository media;
+    private InMemoryRatingRepository ratings;
+    private RatingService service;
+    private User alice;
+    private User bob;
+    private MediaEntry arrival;
+
+    @BeforeEach
+    void setUp() {
+        users = new InMemoryUserRepository();
+        media = new InMemoryMediaRepository();
+        ratings = new InMemoryRatingRepository();
+        service = new RatingService(media, ratings, new MediaAssembler());
+        alice = users.seed("alice");
+        bob = users.seed("bob");
+        arrival = media.create(TestFixtures.media(0, "Arrival", MediaType.MOVIE, 2016, 12,
+                alice.id(), "sci-fi"));
+    }
+
+    @Test
+    void rateStoresTheRatingAndReturnsIt() {
+        RatingResponse response = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        assertEquals(arrival.id(), response.mediaId());
+        assertEquals("Arrival", response.mediaTitle());
+        assertEquals(bob.id(), response.userId());
+        assertEquals(5, response.stars());
+        assertEquals("Great", response.comment());
+        assertFalse(response.commentConfirmed());
+        assertEquals(0, response.likeCount());
+        assertTrue(response.id() > 0);
+        assertNotNull(response.createdAt());
+        assertNotNull(response.updatedAt());
+        assertTrue(ratings.findByUserAndMedia(bob.id(), arrival.id()).isPresent());
+    }
+
+    @Test
+    void allowsDifferentUsersToRateTheSameMedia() {
+        service.rate(bob.id(), arrival.id(), new RatingInput(5, null));
+
+        RatingResponse aliceRating = service.rate(alice.id(), arrival.id(), new RatingInput(3, null));
+
+        assertEquals(alice.id(), aliceRating.userId());
+        assertEquals(3, aliceRating.stars());
+        assertTrue(ratings.findByUserAndMedia(bob.id(), arrival.id()).isPresent());
+        assertTrue(ratings.findByUserAndMedia(alice.id(), arrival.id()).isPresent());
+    }
+
+    @Test
+    void ratingWithoutCommentIsImmediatelyConfirmed() {
+        RatingResponse response = service.rate(bob.id(), arrival.id(), new RatingInput(4, null));
+
+        assertNull(response.comment());
+        assertTrue(response.commentConfirmed());
+    }
+
+    @Test
+    void blankCommentIsStoredAsNull() {
+        RatingResponse response = service.rate(bob.id(), arrival.id(), new RatingInput(4, "   "));
+
+        assertNull(response.comment());
+        assertTrue(response.commentConfirmed());
+    }
+
+    @Test
+    void rejectsStarsOutsideOneToFive() {
+        assertThrows(ValidationException.class,
+                () -> service.rate(bob.id(), arrival.id(), new RatingInput(0, null)));
+        assertThrows(ValidationException.class,
+                () -> service.rate(bob.id(), arrival.id(), new RatingInput(6, null)));
+        assertThrows(ValidationException.class,
+                () -> service.rate(bob.id(), arrival.id(), new RatingInput(null, null)));
+        assertTrue(ratings.findByUserAndMedia(bob.id(), arrival.id()).isEmpty());
+    }
+
+    @Test
+    void rejectsSecondRatingForSameUserAndMedia() {
+        service.rate(bob.id(), arrival.id(), new RatingInput(5, null));
+
+        assertThrows(ConflictException.class,
+                () -> service.rate(bob.id(), arrival.id(), new RatingInput(3, null)));
+        assertEquals(5, ratings.findByUserAndMedia(bob.id(), arrival.id())
+                .orElseThrow().stars());
+    }
+
+    @Test
+    void rejectsRatingForUnknownMedia() {
+        assertThrows(NotFoundException.class,
+                () -> service.rate(bob.id(), 999, new RatingInput(5, null)));
+    }
+
+    @Test
+    void rejectsOverlyLongComment() {
+        assertThrows(ValidationException.class,
+                () -> service.rate(bob.id(), arrival.id(),
+                        new RatingInput(5, "x".repeat(1001))));
+        assertTrue(ratings.findByUserAndMedia(bob.id(), arrival.id()).isEmpty());
+    }
+}

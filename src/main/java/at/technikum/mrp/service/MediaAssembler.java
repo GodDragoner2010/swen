@@ -1,8 +1,10 @@
 package at.technikum.mrp.service;
 
 import at.technikum.mrp.domain.MediaEntry;
+import at.technikum.mrp.domain.Rating;
 import at.technikum.mrp.dto.MediaDetailResponse;
 import at.technikum.mrp.dto.MediaSummaryResponse;
+import at.technikum.mrp.dto.RatingResponse;
 import at.technikum.mrp.util.Format;
 
 import java.util.List;
@@ -51,6 +53,22 @@ public final class MediaAssembler {
                 0,
                 false,
                 List.of()
+        );
+    }
+
+    public RatingResponse ratingResponse(Rating rating, MediaEntry media, long viewerId, boolean likedByMe) {
+        return new RatingResponse(
+                rating.id(),
+                rating.mediaId(),
+                media == null ? null : media.title(),
+                rating.userId(),
+                rating.stars(),
+                rating.commentVisibleTo(viewerId) ? rating.comment() : null,
+                rating.commentConfirmed(),
+                Format.iso(rating.createdAt()),
+                Format.iso(rating.updatedAt()),
+                rating.likeCount(),
+                likedByMe
         );
     }
 }
