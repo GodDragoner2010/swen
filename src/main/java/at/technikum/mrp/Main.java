@@ -6,6 +6,7 @@ import at.technikum.mrp.http.Router;
 import at.technikum.mrp.http.controller.AuthController;
 import at.technikum.mrp.http.controller.HealthController;
 import at.technikum.mrp.http.controller.MediaController;
+import at.technikum.mrp.http.controller.RatingController;
 import at.technikum.mrp.persistence.Database;
 import at.technikum.mrp.persistence.MediaRepository;
 import at.technikum.mrp.persistence.RatingRepository;
@@ -48,6 +49,7 @@ public final class Main {
         MediaService mediaService = new MediaService(mediaRepository, userRepository, new MediaAssembler());
         RatingService ratingService = new RatingService(mediaRepository, ratingRepository, new MediaAssembler());
         MediaController mediaController = new MediaController(mediaService, ratingService);
+        RatingController ratingController = new RatingController(ratingService);
 
         Router router = new Router();
         router.add("GET", "/api/health", Router.Access.PUBLIC, new HealthController()::health);
@@ -59,6 +61,7 @@ public final class Main {
         router.add("PUT", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::update);
         router.add("DELETE", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::delete);
         router.add("POST", "/api/media/{mediaId}/rate", Router.Access.PROTECTED, mediaController::rate);
+        router.add("POST", "/api/ratings/{ratingId}/confirm", Router.Access.PROTECTED, ratingController::confirm);
 
         ApiServer server = new ApiServer(config.port(), router, authService);
         Runtime.getRuntime().addShutdownHook(new Thread(server::stop));

@@ -48,6 +48,32 @@ public final class RatingService {
         return assembler.ratingResponse(created, entry, userId, false);
     }
 
+    public RatingResponse confirm(long userId, long ratingId) {
+        Rating existing = requireRating(ratingId);
+        requireOwner(existing, userId, "You may only confirm your own rating comments");
+        if (!existing.hasComment()) {
+            throw new ValidationException("Rating has no comment to confirm");
+        }
+        if (existing.commentConfirmed()) {
+            MediaEntry entry = media.findById(existing.mediaId()).orElse(null);
+            return assembler.ratingResponse(existing, entry, userId, false);
+        }
+        Rating updated = new Rating(
+                existing.id(),
+                existing.userId(),
+                existing.mediaId(),
+                existing.stars(),
+                existing.comment(),
+                true,
+                existing.createdAt(),
+                Instant.now(),
+                existing.likeCount()
+        );
+        ratings.update(updated);
+        MediaEntry entry = media.findById(updated.mediaId()).orElse(null);
+        return assembler.ratingResponse(updated, entry, userId, false);
+    }
+
     private int validateStars(Integer stars) {
         if (stars == null || stars < 1 || stars > 5) {
             throw new ValidationException("Stars must be an integer between 1 and 5");
@@ -69,5 +95,16 @@ public final class RatingService {
     private MediaEntry requireMedia(long mediaId) {
         return media.findById(mediaId)
                 .orElseThrow(() -> new NotFoundException("Media entry not found"));
+    }
+
+    private Rating requireRating(long ratingId) {
+        return ratings.findById(ratingId)
+                .orElseThrow(() -> new NotFoundException("Rating not found"));
+    }
+
+    private void requireOwner(Rating rating, long userId, String message) {
+        if (rating.userId() != userId) {
+            throw new ForbiddenException(message);
+        }
     }
 }

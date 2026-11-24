@@ -49,6 +49,37 @@ public final class JdbcRatingRepository implements RatingRepository {
     }
 
     @Override
+    public void update(Rating rating) {
+        database.inTransaction(connection -> {
+            String sql = """
+                    UPDATE ratings
+                    SET comment_confirmed = ?, updated_at = ?
+                    WHERE id = ?
+                    """;
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setBoolean(1, rating.commentConfirmed());
+                statement.setTimestamp(2, Timestamp.from(rating.updatedAt()));
+                statement.setLong(3, rating.id());
+                statement.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    @Override
+    public Optional<Rating> findById(long id) {
+        return database.read(connection -> {
+            String sql = SELECT_RATING + " WHERE r.id = ?";
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, id);
+                try (ResultSet result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(map(result)) : Optional.empty();
+                }
+            }
+        });
+    }
+
+    @Override
     public Optional<Rating> findByUserAndMedia(long userId, long mediaId) {
         return database.read(connection -> {
             String sql = SELECT_RATING + " WHERE r.user_id = ? AND r.media_id = ?";

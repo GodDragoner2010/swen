@@ -2,6 +2,7 @@ package at.technikum.mrp.service;
 
 import at.technikum.mrp.domain.MediaEntry;
 import at.technikum.mrp.domain.MediaType;
+import at.technikum.mrp.domain.Rating;
 import at.technikum.mrp.domain.User;
 import at.technikum.mrp.dto.RatingInput;
 import at.technikum.mrp.dto.RatingResponse;
@@ -118,5 +119,56 @@ class RatingServiceTest {
                 () -> service.rate(bob.id(), arrival.id(),
                         new RatingInput(5, "x".repeat(1001))));
         assertTrue(ratings.findByUserAndMedia(bob.id(), arrival.id()).isEmpty());
+    }
+
+    @Test
+    void commentIsHiddenFromOtherViewersUntilConfirmed() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        Rating stored = ratings.findById(created.id()).orElseThrow();
+
+        assertTrue(stored.commentVisibleTo(bob.id()));
+        assertFalse(stored.commentVisibleTo(alice.id()));
+    }
+
+    @Test
+    void confirmingMakesCommentVisible() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        RatingResponse confirmed = service.confirm(bob.id(), created.id());
+
+        assertTrue(confirmed.commentConfirmed());
+        assertEquals("Great", confirmed.comment());
+        assertTrue(ratings.findById(created.id()).orElseThrow().commentVisibleTo(alice.id()));
+    }
+
+    @Test
+    void confirmIsIdempotentOnceCommentIsConfirmed() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+        service.confirm(bob.id(), created.id());
+
+        RatingResponse again = service.confirm(bob.id(), created.id());
+
+        assertTrue(again.commentConfirmed());
+        assertEquals("Great", again.comment());
+    }
+
+    @Test
+    void onlyTheOwnerMayConfirmAComment() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        assertThrows(ForbiddenException.class, () -> service.confirm(alice.id(), created.id()));
+    }
+
+    @Test
+    void confirmingUnknownRatingIsNotFound() {
+        assertThrows(NotFoundException.class, () -> service.confirm(bob.id(), 999));
+    }
+
+    @Test
+    void ratingWithoutCommentCannotBeConfirmed() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(4, null));
+
+        assertThrows(ValidationException.class, () -> service.confirm(bob.id(), created.id()));
     }
 }

@@ -24,4 +24,14 @@ public final class InMemoryRatingRepository implements RatingRepository {
                 .filter(rating -> rating.userId() == userId && rating.mediaId() == mediaId)
                 .findFirst();
     }
+
+    @Override
+    public Optional<Rating> findById(long id) {
+        return Optional.ofNullable(byId.get(id));
+    }
+
+    @Override
+    public void update(Rating rating) {
+        byId.put(rating.id(), rating);
+    }
 }
