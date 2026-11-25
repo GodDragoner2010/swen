@@ -8,6 +8,7 @@ import at.technikum.mrp.persistence.MediaRepository;
 import at.technikum.mrp.persistence.RatingRepository;
 
 import java.time.Instant;
+import java.util.Objects;
 
 public final class RatingService {
     private static final int COMMENT_MAX_LENGTH = 1000;
@@ -46,6 +47,38 @@ public final class RatingService {
         );
         Rating created = ratings.create(rating);
         return assembler.ratingResponse(created, entry, userId, false);
+    }
+
+    public RatingResponse update(long userId, long ratingId, RatingInput input) {
+        Rating existing = requireRating(ratingId);
+        requireOwner(existing, userId, "You may only edit your own ratings");
+        if (input == null) {
+            throw new ValidationException("Request body is required");
+        }
+        int stars = validateStars(input.stars());
+        String comment = normalizeComment(input.comment());
+        boolean commentChanged = !Objects.equals(existing.comment(), comment);
+        boolean confirmed = comment == null || (commentChanged ? false : existing.commentConfirmed());
+        Rating updated = new Rating(
+                existing.id(),
+                existing.userId(),
+                existing.mediaId(),
+                stars,
+                comment,
+                confirmed,
+                existing.createdAt(),
+                Instant.now(),
+                existing.likeCount()
+        );
+        ratings.update(updated);
+        MediaEntry entry = media.findById(updated.mediaId()).orElse(null);
+        return assembler.ratingResponse(updated, entry, userId, false);
+    }
+
+    public void delete(long userId, long ratingId) {
+        Rating existing = requireRating(ratingId);
+        requireOwner(existing, userId, "You may only delete your own ratings");
+        ratings.delete(ratingId);
     }
 
     public RatingResponse confirm(long userId, long ratingId) {

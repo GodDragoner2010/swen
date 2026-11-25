@@ -19,6 +19,11 @@ public final class InMemoryRatingRepository implements RatingRepository {
     }
 
     @Override
+    public void delete(long id) {
+        byId.remove(id);
+    }
+
+    @Override
     public Optional<Rating> findByUserAndMedia(long userId, long mediaId) {
         return byId.values().stream()
                 .filter(rating -> rating.userId() == userId && rating.mediaId() == mediaId)

@@ -171,4 +171,66 @@ class RatingServiceTest {
 
         assertThrows(ValidationException.class, () -> service.confirm(bob.id(), created.id()));
     }
+
+    @Test
+    void onlyTheOwnerMayUpdateARating() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, null));
+
+        assertThrows(ForbiddenException.class,
+                () -> service.update(alice.id(), created.id(), new RatingInput(4, null)));
+    }
+
+    @Test
+    void updatingARatingChangesStarsAndComment() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        RatingResponse updated = service.update(bob.id(), created.id(), new RatingInput(3, "Changed"));
+
+        assertEquals(3, updated.stars());
+        assertEquals("Changed", updated.comment());
+        assertEquals(3, ratings.findById(created.id()).orElseThrow().stars());
+        assertEquals("Changed", ratings.findById(created.id()).orElseThrow().comment());
+    }
+
+    @Test
+    void changingCommentResetsConfirmation() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+        service.confirm(bob.id(), created.id());
+
+        RatingResponse updated = service.update(bob.id(), created.id(), new RatingInput(5, "Changed"));
+
+        assertFalse(updated.commentConfirmed());
+        assertEquals("Changed", updated.comment());
+    }
+
+    @Test
+    void removingCommentMarksRatingAsConfirmed() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, "Great"));
+
+        RatingResponse updated = service.update(bob.id(), created.id(), new RatingInput(4, null));
+
+        assertTrue(updated.commentConfirmed());
+        assertNull(updated.comment());
+    }
+
+    @Test
+    void updatingUnknownRatingIsNotFound() {
+        assertThrows(NotFoundException.class,
+                () -> service.update(bob.id(), 999, new RatingInput(4, null)));
+    }
+
+    @Test
+    void onlyTheOwnerMayDeleteARating() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, null));
+
+        assertThrows(ForbiddenException.class, () -> service.delete(alice.id(), created.id()));
+
+        service.delete(bob.id(), created.id());
+        assertTrue(ratings.findById(created.id()).isEmpty());
+    }
+
+    @Test
+    void deletingUnknownRatingIsNotFound() {
+        assertThrows(NotFoundException.class, () -> service.delete(bob.id(), 999));
+    }
 }

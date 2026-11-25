@@ -61,6 +61,8 @@ public final class Main {
         router.add("PUT", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::update);
         router.add("DELETE", "/api/media/{mediaId}", Router.Access.PROTECTED, mediaController::delete);
         router.add("POST", "/api/media/{mediaId}/rate", Router.Access.PROTECTED, mediaController::rate);
+        router.add("PUT", "/api/ratings/{ratingId}", Router.Access.PROTECTED, ratingController::update);
+        router.add("DELETE", "/api/ratings/{ratingId}", Router.Access.PROTECTED, ratingController::delete);
         router.add("POST", "/api/ratings/{ratingId}/confirm", Router.Access.PROTECTED, ratingController::confirm);
 
         ApiServer server = new ApiServer(config.port(), router, authService);

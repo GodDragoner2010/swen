@@ -12,4 +12,6 @@ public interface RatingRepository {
     Optional<Rating> findById(long id);
 
     Optional<Rating> findByUserAndMedia(long userId, long mediaId);
+
+    void delete(long id);
 }

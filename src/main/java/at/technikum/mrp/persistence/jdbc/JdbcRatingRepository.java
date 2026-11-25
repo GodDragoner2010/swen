@@ -53,13 +53,27 @@ public final class JdbcRatingRepository implements RatingRepository {
         database.inTransaction(connection -> {
             String sql = """
                     UPDATE ratings
-                    SET comment_confirmed = ?, updated_at = ?
+                    SET stars = ?, comment = ?, comment_confirmed = ?, updated_at = ?
                     WHERE id = ?
                     """;
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setBoolean(1, rating.commentConfirmed());
-                statement.setTimestamp(2, Timestamp.from(rating.updatedAt()));
-                statement.setLong(3, rating.id());
+                statement.setInt(1, rating.stars());
+                statement.setString(2, rating.comment());
+                statement.setBoolean(3, rating.commentConfirmed());
+                statement.setTimestamp(4, Timestamp.from(rating.updatedAt()));
+                statement.setLong(5, rating.id());
+                statement.executeUpdate();
+            }
+            return null;
+        });
+    }
+
+    @Override
+    public void delete(long id) {
+        database.inTransaction(connection -> {
+            String sql = "DELETE FROM ratings WHERE id = ?";
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setLong(1, id);
                 statement.executeUpdate();
             }
             return null;
