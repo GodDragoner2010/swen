@@ -230,6 +230,15 @@ class RatingServiceTest {
     }
 
     @Test
+    void nonOwnerCannotDeleteAnotherUsersRating() {
+        RatingResponse created = service.rate(bob.id(), arrival.id(), new RatingInput(5, null));
+
+        assertThrows(ForbiddenException.class, () -> service.delete(alice.id(), created.id()));
+
+        assertTrue(ratings.findById(created.id()).isPresent());
+    }
+
+    @Test
     void deletingUnknownRatingIsNotFound() {
         assertThrows(NotFoundException.class, () -> service.delete(bob.id(), 999));
     }

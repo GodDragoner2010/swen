@@ -77,7 +77,7 @@ public final class RatingService {
 
     public void delete(long userId, long ratingId) {
         Rating existing = requireRating(ratingId);
-        requireOwner(existing, userId, "You may only delete your own ratings");
+        requireOwner(existing, existing.userId(), "You may only delete your own ratings");
         ratings.delete(ratingId);
     }
 
